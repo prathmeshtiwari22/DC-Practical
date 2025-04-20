@@ -1,56 +1,58 @@
-# deadlock_example.py
+class Process :
 
-import threading
-import time
+    def __init__(self,pid):
+        self.pid = pid
+        self.waiting_for = None
 
-# Create two shared resources (locks)
-lock1 = threading.Lock()
-lock2 = threading.Lock()
+    def detectdeadlock(self,initiator):
+        
+        if self.waiting_for == None :
+            print('waiting for no one')
+            return False
+        
+        probe = [initiator,self.pid,self.waiting_for.pid] 
+        print(f'{self.pid} send {probe} to {self.waiting_for.pid}')
 
-def thread1():
-    print("Thread 1: Trying to acquire Lock 1...")
-    lock1.acquire()
-    print("Thread 1: Acquired Lock 1")
-    time.sleep(1)
-    print("Thread 1: Trying to acquire Lock 2...")
-    lock2.acquire()
-    print("Thread 1: Acquired Lock 2")
+        if self.waiting_for.pid == initiator :
+            print(f'deadlock detected !')
+            return True
+        
+        return self.waiting_for.detectdeadlock(initiator)
 
-    # Simulating work
-    print("Thread 1: Working in critical section")
-    lock2.release()
-    lock1.release()
+p1 = Process(1)
+p2 = Process(2)
+p3 = Process(3)
+p1.waiting_for = p2
+p2.waiting_for = p3
+p3.waiting_for = p1  # Cycle formed
 
-def thread2():
-    print("Thread 2: Trying to acquire Lock 2...")
-    lock2.acquire()
-    print("Thread 2: Acquired Lock 2")
-    time.sleep(1)
-    print("Thread 2: Trying to acquire Lock 1...")
-    lock1.acquire()
-    print("Thread 2: Acquired Lock 1")
+print("\n--- Deadlock Test ---")
+if p1.detectdeadlock(p1.pid):
+    print("Deadlock confirmed.")
+else:
+    print("No deadlock detected.")
 
-    # Simulating work
-    print("Thread 2: Working in critical section")
-    lock1.release()
-    lock2.release()
+# --- No Deadlock Example ---
+p4 = Process(4)
+p5 = Process(5)
+p4.waiting_for = p5
+p5.waiting_for = None  # No cycle
 
-# Create threads
-t1 = threading.Thread(target=thread1)
-t2 = threading.Thread(target=thread2)
+print("\n--- No Deadlock Test ---")
+if p4.detectdeadlock(p4.pid):
+    print("Deadlock confirmed.")
+else:
+    print("No deadlock detected.")
 
-# Start threads
-t1.start()
-t2.start()
+# output : 
+#--- Deadlock Test ---
+#1 send [1, 1, 2] to 2
+#2 send [1, 2, 3] to 3
+#3 send [1, 3, 1] to 1
+#deadlock detected !
+#Deadlock confirmed.
 
-# Wait for threads to complete
-t1.join()
-t2.join()
-
-# PS D:\ReactExpo\dc> py deadlock.py
-#Thread 1: Trying to acquire Lock 1...
-#Thread 1: Acquired Lock 1
-#Thread 2: Trying to acquire Lock 2...
-#Thread 2: Acquired Lock 2
-#Thread 1: Trying to acquire Lock 2...
-#Thread 2: Trying to acquire Lock 1...
+#--- No Deadlock Test ---
+#4 send [4, 4, 5] to 5
+#waiting for no one
+#No deadlock detected.
